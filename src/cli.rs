@@ -38,6 +38,9 @@ pub struct CliArgs {
     #[arg(long = "list-regions", help = "List supported regions and their pricing tier")]
     pub list_regions: bool,
 
+    #[arg(long = "use-api", help = "Fetch live prices from the Cloud Billing v2beta API")]
+    pub use_api: bool,
+
     #[arg(short = 'h', long = "help", help = "Show this help")]
     pub help: bool,
 }
@@ -92,7 +95,13 @@ pub fn run(args: CliArgs) -> i32 {
         concurrency: args.concurrency,
     };
 
-    match calculator::estimate(&inputs) {
+    let est_result = if args.use_api {
+        calculator::estimate_from_api(&inputs)
+    } else {
+        calculator::estimate(&inputs)
+    };
+
+    match est_result {
         Ok(est) => {
             report(&inputs, &est);
             0
@@ -116,6 +125,7 @@ fn print_help() {
         \x20\x20-R REGION, --region=REGION       Cloud Run region (default: {})\n\
         \x20\x20-d MS, --duration=MS             Average request duration in ms (default: {})\n\
         \x20\x20-n N, --concurrency=N            Concurrent requests per instance (default: {})\n\
+        \x20\x20--use-api                        Fetch live prices from the Cloud Billing v2beta API\n\
         \x20\x20--list-regions                   List supported regions and their pricing tier\n\
         \x20\x20-h, --help                       Show this help",
         DEFAULT_CPU,

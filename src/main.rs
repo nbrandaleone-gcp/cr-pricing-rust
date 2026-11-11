@@ -1,5 +1,6 @@
 pub mod calculator;
 pub mod cli;
+pub mod pricing_api;
 pub mod rates;
 pub mod region;
 pub mod tui;

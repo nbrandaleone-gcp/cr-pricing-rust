@@ -35,7 +35,17 @@ pub fn estimate(inputs: &Inputs) -> Result<Estimate> {
     let tier = region::tier(&inputs.region)
         .ok_or_else(|| anyhow!("Unknown region: {}", inputs.region))?;
     let rates = Rates::for_tier(tier);
+    estimate_with_rates(inputs, tier, rates)
+}
 
+pub fn estimate_from_api(inputs: &Inputs) -> Result<Estimate> {
+    let tier = region::tier(&inputs.region)
+        .ok_or_else(|| anyhow!("Unknown region: {}", inputs.region))?;
+    let rates = Rates::from_api(tier)?;
+    estimate_with_rates(inputs, tier, rates)
+}
+
+pub fn estimate_with_rates(inputs: &Inputs, tier: Tier, rates: Rates) -> Result<Estimate> {
     let billable_seconds = billable_seconds_for(inputs);
     let vcpu_seconds = billable_seconds * inputs.cpu;
     let gib_seconds = billable_seconds * (inputs.memory_mib / MIB_PER_GIB);
@@ -149,5 +159,41 @@ mod tests {
         let res = estimate(&inputs);
         assert!(res.is_err());
         assert!(res.unwrap_err().to_string().contains("Unknown region"));
+    }
+
+    #[test]
+    fn test_compare_hardcoded_vs_api_estimates_within_10_percent() {
+        let tier1_inputs = default_inputs();
+        let mut tier2_inputs = default_inputs();
+        tier2_inputs.region = "europe-west3".to_string();
+        tier2_inputs.cpu = 2.0;
+        tier2_inputs.memory_mib = 2048.0;
+        tier2_inputs.requests = 10_000_000;
+        tier2_inputs.avg_request_ms = 250.0;
+        tier2_inputs.concurrency = 4;
+
+        for inputs in [&tier1_inputs, &tier2_inputs] {
+            let hc_est = estimate(inputs).unwrap();
+            let api_est = estimate_from_api(inputs)
+                .expect("Failed to calculate estimate from Cloud Billing v2beta API");
+
+            for (label, hc_val, api_val) in [
+                ("cpu_cost", hc_est.cpu_cost, api_est.cpu_cost),
+                ("memory_cost", hc_est.memory_cost, api_est.memory_cost),
+                ("request_cost", hc_est.request_cost, api_est.request_cost),
+                ("total", hc_est.total(), api_est.total()),
+            ] {
+                let rel_diff = (hc_val - api_val).abs() / api_val.abs();
+                assert!(
+                    rel_diff <= 0.10,
+                    "Region {} {} differs by {:.2}% (hardcoded: {}, api: {}), exceeding 10%",
+                    inputs.region,
+                    label,
+                    rel_diff * 100.0,
+                    hc_val,
+                    api_val
+                );
+            }
+        }
     }
 }

@@ -1,4 +1,6 @@
+use crate::pricing_api;
 use crate::region::Tier;
+use anyhow::Result;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rates {
@@ -21,6 +23,11 @@ impl Rates {
                 per_million_requests: 0.40,
             },
         }
+    }
+
+    /// Fetches the latest rates for the given tier from the Cloud Billing v2beta API.
+    pub fn from_api(tier: Tier) -> Result<Self> {
+        pricing_api::fetch_rates_for_tier(tier)
     }
 }
 
