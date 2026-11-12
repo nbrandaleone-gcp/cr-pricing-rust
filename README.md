@@ -6,6 +6,8 @@ It offers two interfaces:
 - **Interactive TUI (Default)**: A terminal dashboard featuring interactive parameter sliders with live-updating monthly cost reports.
 - **Non-Interactive CLI**: A scriptable command-line interface utilizing flag options for pipeline and scripting automation.
 
+See the [Architecture Diagram](docs/architecture.md) for an overview of the modules and data flow.
+
 ---
 
 ## How It Works
